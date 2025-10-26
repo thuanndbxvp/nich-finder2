@@ -1,17 +1,33 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ApiProvider, Niche, AiRequestOptions } from '../types';
+import { ApiProvider, AnalyzedNiche, AiRequestOptions } from '../types';
 
 // This is a mock function for ChatGPT as we cannot implement the actual API call.
 const callChatGptApiMock = async (prompt: string, options: AiRequestOptions, schema?: any): Promise<string> => {
   console.log(`Mocking ChatGPT API call with model ${options.model} and prompt:`, prompt);
   await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-  if (prompt.includes("đề xuất 5 ngách nội dung")) {
-    const mockNiches: Niche[] = [
-      { title: "Thử Thách Nấu Ăn Cùng ChatGPT", description: "Người dùng đưa ra nguyên liệu, ChatGPT tạo công thức, và bạn nấu theo. Vui nhộn và bất ngờ!" },
-      { title: "Lịch Sử Kể Lại Bởi ChatGPT", description: "Chọn một sự kiện lịch sử và để AI kể lại theo một phong cách độc đáo (ví dụ: hài hước, trinh thám)." },
-      { title: "Du Lịch Ảo Với ChatGPT", description: "Khám phá các địa điểm nổi tiếng trên thế giới qua lời kể và kế hoạch chi tiết từ AI." },
-      { title: "Sửa Chữa DIY Cùng AI", description: "Gặp vấn đề hỏng hóc trong nhà? Hỏi AI cách sửa và thực hiện theo hướng dẫn." },
-      { title: "Học Kỹ Năng Mới Với ChatGPT", description: "Chọn một kỹ năng (đàn, vẽ, lập trình) và để AI hướng dẫn bạn từ đầu." },
+  if (prompt.includes("hãy phân tích và đề xuất 3 ngách nội dung chuyên sâu")) {
+    const mockNiches: AnalyzedNiche[] = [
+      {
+        title: "Tài chính Cá nhân Cho Gen Z",
+        description: "Hướng dẫn thế hệ trẻ về tiết kiệm, đầu tư và quản lý tiền bạc một cách dễ hiểu và gần gũi.",
+        monetization: "RPM cao do chủ đề tài chính. Rất tốt cho affiliate marketing các app đầu tư, ngân hàng số. Có thể bán khóa học/ebook đơn giản.",
+        content_direction: "Video dạng giải thích (explainer), hướng dẫn từng bước (how-to), review ứng dụng, phỏng vấn người trẻ thành công.",
+        competition: "Trung bình. Để nổi bật, hãy tập trung vào phong cách edit trẻ trung, sử dụng meme, và các ví dụ thực tế mà Gen Z quan tâm (vd: tiết kiệm tiền đi concert)."
+      },
+      {
+        title: "Lịch sử 'Đen' (Dark History)",
+        description: "Khám phá những góc khuất, sự thật gây sốc hoặc những câu chuyện bi kịch ít người biết trong lịch sử Việt Nam và thế giới.",
+        monetization: "RPM ở mức khá. Chủ yếu kiếm tiền từ quảng cáo YouTube. Khó affiliate nhưng có thể bán sách hoặc merchandise nếu xây dựng cộng đồng mạnh.",
+        content_direction: "Video kể chuyện (storytelling) với hình ảnh tư liệu, animation minh họa. Cần đầu tư vào giọng đọc và kịch bản lôi cuốn.",
+        competition: "Trung bình. Cần tìm những câu chuyện thật độc đáo hoặc có góc nhìn riêng, tránh các chủ đề đã quá quen thuộc. Chất lượng âm thanh và hình ảnh là chìa khóa."
+      },
+      {
+        title: "Thử Thách Sống Tối Giản",
+        description: "Thực hiện các thử thách sống tối giản trong 30 ngày và ghi lại hành trình: dọn nhà, giảm chi tiêu, detox kỹ thuật số...",
+        monetization: "RPM trung bình. Tiềm năng affiliate lớn cho các sản phẩm bền vững, đồ gia dụng thông minh, sách về lối sống. Có thể tạo ra các sản phẩm số như 'Bộ kế hoạch sống tối giản'.",
+        content_direction: "Định dạng Vlog, 'before-after', chia sẻ kinh nghiệm thực tế. Video cần chân thực, truyền cảm hứng và đưa ra các mẹo hữu ích.",
+        competition: "Cao. Để khác biệt, hãy chọn một góc tiếp cận riêng (ví dụ: tối giản cho sinh viên, cho người đi làm bận rộn) và thể hiện cá tính mạnh mẽ."
+      },
     ];
     return JSON.stringify(mockNiches);
   }
@@ -104,15 +120,34 @@ const nicheSchema = {
       description: {
         type: Type.STRING,
         description: "Mô tả ngắn gọn về ngách và giải thích tiềm năng của nó."
+      },
+      monetization: {
+        type: Type.STRING,
+        description: "Đánh giá chi tiết về tiềm năng kiếm tiền của ngách, bao gồm RPM, affiliate, v.v."
+      },
+      content_direction: {
+        type: Type.STRING,
+        description: "Gợi ý về các định dạng và hướng nội dung video cụ thể."
+      },
+      competition: {
+        type: Type.STRING,
+        description: "Đánh giá mức độ cạnh tranh và đưa ra gợi ý để tạo sự khác biệt."
       }
     },
-    required: ["title", "description"]
+    required: ["title", "description", "monetization", "content_direction", "competition"]
   }
 };
 
 
-export const findNiches = async (topic: string, provider: ApiProvider, options: AiRequestOptions): Promise<Niche[]> => {
-  const prompt = `Bạn là một chuyên gia sáng tạo nội dung YouTube. Dựa vào chủ đề chính là "${topic}", hãy đề xuất 5 ngách nội dung (niche) độc đáo, ít cạnh tranh và có tiềm năng phát triển mạnh. Với mỗi ngách, hãy cung cấp một tiêu đề thật hấp dẫn và mô tả ngắn gọn tại sao ngách này lại tiềm năng.`;
+export const findNiches = async (topic: string, provider: ApiProvider, options: AiRequestOptions): Promise<AnalyzedNiche[]> => {
+  const prompt = `Bạn là một chuyên gia chiến lược YouTube với kiến thức sâu rộng về các ngách (niche) thành công, bao gồm cả các ngách có RPM cao và các ý tưởng video viral.
+  Dựa trên kiến thức đó và chủ đề người dùng cung cấp là "${topic}", hãy phân tích và đề xuất 3 ngách nội dung chuyên sâu.
+  Với mỗi ngách, hãy cung cấp thông tin chi tiết theo cấu trúc sau:
+  1.  **title**: Tên ngách hấp dẫn.
+  2.  **description**: Mô tả ngắn gọn về ngách.
+  3.  **monetization**: Đánh giá tiềm năng kiếm tiền (RPM ước tính, khả năng affiliate, bán sản phẩm...).
+  4.  **content_direction**: Gợi ý các hướng nội dung, định dạng video cụ thể (ví dụ: video phân tích, hướng dẫn, top list...).
+  5.  **competition**: Đánh giá mức độ cạnh tranh (Thấp, Trung bình, Cao) và gợi ý cách để nổi bật.`;
 
   try {
     let responseText: string;
@@ -122,9 +157,9 @@ export const findNiches = async (topic: string, provider: ApiProvider, options: 
       responseText = await callChatGptApiMock(prompt, options);
     }
     
-    // The response is expected to be a JSON string of Niche[]
+    // The response is expected to be a JSON string of AnalyzedNiche[]
     const niches = JSON.parse(responseText);
-    if (Array.isArray(niches) && niches.every(n => 'title' in n && 'description' in n)) {
+    if (Array.isArray(niches) && niches.every(n => 'title' in n && 'description' in n && 'monetization' in n && 'content_direction' in n && 'competition' in n)) {
       return niches;
     }
     throw new Error("Invalid niche data format received from AI.");
@@ -136,7 +171,7 @@ export const findNiches = async (topic: string, provider: ApiProvider, options: 
   }
 };
 
-export const writeScript = async (niche: Niche, provider: ApiProvider, options: AiRequestOptions): Promise<string> => {
+export const writeScript = async (niche: AnalyzedNiche, provider: ApiProvider, options: AiRequestOptions): Promise<string> => {
   const prompt = `Bạn là một nhà biên kịch YouTube chuyên nghiệp. Hãy viết một kịch bản video hoàn chỉnh và chi tiết cho một video YouTube có tiêu đề: "${niche.title}". 
   
   Chủ đề chính của video là: "${niche.description}".

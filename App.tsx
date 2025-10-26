@@ -1,7 +1,8 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { ApiProvider, Niche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel, ApiKey, ApiKeyStatus } from './types';
+import { ApiProvider, AnalyzedNiche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel, ApiKey, ApiKeyStatus, SavedSession } from './types';
 import { findNiches, writeScript, validateApiKey } from './services/aiService';
-import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon, PlusIcon, TrashIcon, SpinnerIcon, XCircleIcon, QuestionMarkCircleIcon } from './components/icons';
+import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon, PlusIcon, TrashIcon, SpinnerIcon, XCircleIcon, QuestionMarkCircleIcon, DollarSignIcon, UsersIcon, ClipboardDocumentListIcon, BookmarkSquareIcon } from './components/icons';
 
 // Custom hook to sync state with localStorage for persistence
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
@@ -151,17 +152,74 @@ const ApiKeyManagerModal: React.FC<{
   );
 };
 
+const LibraryModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  sessions: SavedSession[];
+  onLoad: (sessionId: string) => void;
+  onDelete: (sessionId: string) => void;
+}> = ({ isOpen, onClose, sessions, onLoad, onDelete }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+      <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-2xl shadow-2xl animate-fade-in-scale-up" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+          <h2 className="text-xl font-bold flex items-center gap-3">
+            <BookmarkSquareIcon className="w-6 h-6 text-purple-400"/>
+            Thư viện phiên làm việc
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-3xl leading-none">&times;</button>
+        </div>
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
+          {sessions.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Thư viện của bạn trống. Hãy tìm kiếm và lưu lại kết quả!</p>
+          ) : (
+            <div className="space-y-4">
+              {sessions.map(session => (
+                <div key={session.id} className="bg-gray-700/50 p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="font-bold text-lg text-white">{session.name}</p>
+                    <p className="text-sm text-gray-400 mt-1">Chủ đề: <span className="font-semibold text-gray-300">{session.topic}</span></p>
+                    <p className="text-xs text-gray-500 mt-2">Đã lưu: {new Date(session.timestamp).toLocaleString('vi-VN')}</p>
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <button onClick={() => onLoad(session.id)} className="w-full sm:w-auto flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Tải lại</button>
+                    <button onClick={() => onDelete(session.id)} className="p-2 text-gray-400 hover:text-red-500 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors" title="Xóa phiên">
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="p-4 bg-gray-900/30 rounded-b-2xl flex justify-end">
+          <button onClick={onClose} className="bg-indigo-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-indigo-500 transition-colors">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const App: React.FC = () => {
-  const [apiProvider, setApiProvider] = useState<ApiProvider>(ApiProvider.Gemini);
+  const [apiProvider, setApiProvider] = useState<ApiProvider>(ApiProvider.ChatGPT);
   const [topic, setTopic] = useState<string>('');
-  const [niches, setNiches] = useState<Niche[]>([]);
-  const [selectedNiche, setSelectedNiche] = useState<Niche | null>(null);
+  const [niches, setNiches] = useState<AnalyzedNiche[]>([]);
+  const [selectedNiche, setSelectedNiche] = useState<AnalyzedNiche | null>(null);
   const [script, setScript] = useState<string>('');
   const [isLoadingNiches, setIsLoadingNiches] = useState<boolean>(false);
   const [isLoadingScript, setIsLoadingScript] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+
+  // State for saved sessions
+  const [savedSessions, setSavedSessions] = useLocalStorage<SavedSession[]>('savedSessions', []);
 
   // API Key Management State
   const [apiKeys, setApiKeys] = useLocalStorage<ApiKey[]>('apiKeys', []);
@@ -215,7 +273,7 @@ const App: React.FC = () => {
     }
   }, [topic, apiProvider, getApiKeyForProvider, geminiModel, chatGptModel]);
 
-  const handleWriteScript = useCallback(async (niche: Niche) => {
+  const handleWriteScript = useCallback(async (niche: AnalyzedNiche) => {
     setSelectedNiche(niche);
     setIsLoadingScript(true);
     setError(null);
@@ -246,6 +304,47 @@ const App: React.FC = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleSaveSession = () => {
+    if (niches.length === 0) {
+      alert("Không có gì để lưu. Vui lòng tìm kiếm ngách trước.");
+      return;
+    }
+    const sessionName = prompt("Nhập tên cho phiên làm việc này:", `Chủ đề: ${topic}`);
+    if (sessionName && sessionName.trim()) {
+      const newSession: SavedSession = {
+        id: crypto.randomUUID(),
+        name: sessionName.trim(),
+        timestamp: new Date().toISOString(),
+        topic,
+        niches,
+        selectedNiche,
+        script,
+        provider: apiProvider,
+      };
+      setSavedSessions(prev => [newSession, ...prev]);
+      alert(`Đã lưu phiên làm việc "${sessionName.trim()}"!`);
+    }
+  };
+
+  const handleLoadSession = (sessionId: string) => {
+    const sessionToLoad = savedSessions.find(s => s.id === sessionId);
+    if (sessionToLoad) {
+      setTopic(sessionToLoad.topic);
+      setNiches(sessionToLoad.niches);
+      setSelectedNiche(sessionToLoad.selectedNiche);
+      setScript(sessionToLoad.script);
+      setApiProvider(sessionToLoad.provider);
+      setError(null);
+      setIsLibraryOpen(false);
+    }
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    if (confirm("Bạn có chắc chắn muốn xóa phiên làm việc này không?")) {
+      setSavedSessions(prev => prev.filter(s => s.id !== sessionId));
+    }
+  };
   
   const providerGeminiClasses = useMemo(() => apiProvider === ApiProvider.Gemini ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600', [apiProvider]);
   const providerChatGPTClasses = useMemo(() => apiProvider === ApiProvider.ChatGPT ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600', [apiProvider]);
@@ -259,6 +358,14 @@ const App: React.FC = () => {
           onClose={() => setIsApiModalOpen(false)}
           apiKeys={apiKeys}
           setApiKeys={setApiKeys}
+        />
+
+        <LibraryModal
+          isOpen={isLibraryOpen}
+          onClose={() => setIsLibraryOpen(false)}
+          sessions={savedSessions}
+          onLoad={handleLoadSession}
+          onDelete={handleDeleteSession}
         />
 
         <header className="text-center mb-10">
@@ -288,10 +395,16 @@ const App: React.FC = () => {
                     </button>
                   </div>
               </div>
-               <button onClick={() => setIsApiModalOpen(true)} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors w-full sm:w-auto">
-                 <KeyIcon className="w-5 h-5" />
-                 <span>Quản lý API Key</span>
-               </button>
+               <div className="flex flex-col sm:flex-row gap-3">
+                 <button onClick={() => setIsLibraryOpen(true)} className="flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors w-full sm:w-auto">
+                    <BookmarkSquareIcon className="w-5 h-5" />
+                    <span>Thư viện</span>
+                  </button>
+                 <button onClick={() => setIsApiModalOpen(true)} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors w-full sm:w-auto">
+                   <KeyIcon className="w-5 h-5" />
+                   <span>Quản lý API Key</span>
+                 </button>
+               </div>
             </div>
 
 
@@ -328,21 +441,56 @@ const App: React.FC = () => {
           
           {niches.length > 0 && (
             <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-3"><LightBulbIcon className="w-7 h-7 text-yellow-300"/> Các ngách tiềm năng đã tìm thấy</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 className="text-2xl font-bold flex items-center gap-3"><LightBulbIcon className="w-7 h-7 text-yellow-300"/> Phân tích các ngách tiềm năng</h2>
+                <button onClick={handleSaveSession} className="flex-shrink-0 flex items-center gap-2 bg-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors">
+                    <BookmarkSquareIcon className="w-5 h-5" />
+                    <span>Lưu phiên</span>
+                </button>
+              </div>
+              <div className="space-y-6">
                 {niches.map((niche, index) => (
-                  <div key={index} className={`p-4 rounded-lg flex flex-col justify-between transition-all duration-300 ${selectedNiche?.title === niche.title ? 'bg-indigo-900/50 ring-2 ring-indigo-500' : 'bg-gray-700/60 hover:bg-gray-700/90'}`}>
-                    <div>
-                      <h3 className="font-bold text-lg text-indigo-300">{niche.title}</h3>
-                      <p className="text-gray-400 mt-2 text-sm">{niche.description}</p>
+                  <div key={index} className={`p-5 rounded-lg transition-all duration-300 ${selectedNiche?.title === niche.title ? 'bg-indigo-900/40 ring-2 ring-indigo-500' : 'bg-gray-700/30'}`}>
+                    <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+                      <div className="flex-1">
+                          <h3 className="font-bold text-xl text-indigo-300">{niche.title}</h3>
+                          <p className="text-gray-400 mt-2 text-sm">{niche.description}</p>
+                           <div className="mt-4 pt-4 border-t border-gray-600/50 space-y-3">
+                              <div >
+                                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                                  <DollarSignIcon className="w-5 h-5 text-green-400" />
+                                  Tiềm năng kiếm tiền
+                                </h4>
+                                <p className="text-gray-400 mt-1 text-sm pl-7">{niche.monetization}</p>
+                              </div>
+                              <div >
+                                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                                  <ClipboardDocumentListIcon className="w-5 h-5 text-blue-400" />
+                                  Định hướng nội dung
+                                </h4>
+                                <p className="text-gray-400 mt-1 text-sm pl-7">{niche.content_direction}</p>
+                              </div>
+                               <div>
+                                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                                  <UsersIcon className="w-5 h-5 text-orange-400" />
+                                  Mức độ cạnh tranh
+                                </h4>
+                                <p className="text-gray-400 mt-1 text-sm pl-7">{niche.competition}</p>
+                              </div>
+                           </div>
+                      </div>
+                      <div className="w-full md:w-40 flex-shrink-0">
+                         <button 
+                            onClick={() => handleWriteScript(niche)}
+                            disabled={isLoadingScript}
+                            className="w-full h-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-center"
+                          >
+                            {isLoadingScript && selectedNiche?.title === niche.title ? 
+                              <SpinnerIcon className="w-5 h-5 animate-spin"/> : 
+                              'Viết kịch bản cho ngách này'}
+                          </button>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => handleWriteScript(niche)}
-                      disabled={isLoadingScript}
-                      className="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {isLoadingScript && selectedNiche?.title === niche.title ? 'Đang viết...' : 'Viết kịch bản'}
-                    </button>
                   </div>
                 ))}
               </div>

@@ -3,9 +3,12 @@ export enum ApiProvider {
   ChatGPT = 'chatgpt',
 }
 
-export interface Niche {
+export interface AnalyzedNiche {
   title: string;
   description: string;
+  monetization: string; // Đánh giá tiềm năng kiếm tiền
+  content_direction: string; // Gợi ý hướng nội dung
+  competition: string; // Đánh giá mức độ cạnh tranh
 }
 
 export const GEMINI_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest'] as const;
@@ -33,4 +36,16 @@ export interface ApiKey {
   key: string;
   name: string;
   status: ApiKeyStatus;
+}
+
+// New type for Saved Sessions
+export interface SavedSession {
+  id: string;
+  name: string;
+  timestamp: string;
+  topic: string;
+  niches: AnalyzedNiche[];
+  selectedNiche: AnalyzedNiche | null;
+  script: string;
+  provider: ApiProvider;
 }
