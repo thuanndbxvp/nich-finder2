@@ -15,6 +15,7 @@ export interface AnalyzedNiche {
   audience_potential: Score;
   competition_level: Score; // Điểm cao hơn nghĩa là cạnh tranh hơn (khó hơn)
   content_direction: string;
+  keywords: string[];
 }
 
 

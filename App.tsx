@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ApiProvider, AnalyzedNiche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel, ApiKey, ApiKeyStatus, SavedSession, Score } from './types';
 import { findNiches, writeScript, validateApiKey } from './services/aiService';
-import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon, PlusIcon, TrashIcon, SpinnerIcon, XCircleIcon, QuestionMarkCircleIcon, DollarSignIcon, UsersIcon, ClipboardDocumentListIcon, BookmarkSquareIcon } from './components/icons';
+import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon, PlusIcon, TrashIcon, SpinnerIcon, XCircleIcon, QuestionMarkCircleIcon, DollarSignIcon, UsersIcon, ClipboardDocumentListIcon, BookmarkSquareIcon, TagIcon } from './components/icons';
 
 // Custom hook to sync state with localStorage for persistence
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
@@ -515,6 +515,19 @@ const App: React.FC = () => {
                                 Định hướng nội dung
                               </h4>
                               <p className="text-gray-400 mt-1 text-sm">{niche.content_direction}</p>
+                           </div>
+                           <div className="mt-4 pt-4 border-t border-gray-600/50">
+                              <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+                                <TagIcon className="w-5 h-5 text-cyan-400" />
+                                Từ khóa chính
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {niche.keywords?.map((keyword, kwIndex) => (
+                                  <span key={kwIndex} className="bg-gray-600/70 text-cyan-300 text-xs font-medium px-2.5 py-1 rounded-full">
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
                            </div>
                       </div>
                       <div className="w-full md:w-40 flex-shrink-0">

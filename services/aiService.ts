@@ -30,7 +30,14 @@ const callChatGptApiMock = async (prompt: string, options: AiRequestOptions, sch
           score: compScore,
           explanation: compScore > 7 ? "Cực kỳ cạnh tranh, cần sự khác biệt lớn." : (compScore > 4 ? "Cạnh tranh vừa phải, có cơ hội." : "Ít cạnh tranh, là một đại dương xanh tiềm năng.")
         },
-        content_direction: "Làm video dạng top list, phân tích chuyên sâu, hoặc hướng dẫn thực hành từng bước (tutorial)."
+        content_direction: "Làm video dạng top list, phân tích chuyên sâu, hoặc hướng dẫn thực hành từng bước (tutorial).",
+        keywords: [
+            `${topic} cho người mới bắt đầu`,
+            `hướng dẫn ${topic}`,
+            `mẹo ${topic} 2024`,
+            `review ${topic}`,
+            `${topic} là gì`
+        ]
       };
     });
     return JSON.stringify(mockNiches);
@@ -140,9 +147,14 @@ const nicheSchema = {
       content_direction: {
         type: Type.STRING,
         description: "Gợi ý về các định dạng và hướng nội dung video cụ thể."
+      },
+      keywords: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: "Một danh sách các từ khóa SEO chính (khoảng 5-7 từ) liên quan trực tiếp đến ngách này."
       }
     },
-    required: ["title", "description", "monetization_potential", "audience_potential", "competition_level", "content_direction"]
+    required: ["title", "description", "monetization_potential", "audience_potential", "competition_level", "content_direction", "keywords"]
   }
 };
 
@@ -156,7 +168,8 @@ export const findNiches = async (topic: string, provider: ApiProvider, options: 
   3.  **monetization_potential**: Điểm số và giải thích về tiềm năng kiếm tiền (RPM, affiliate, bán sản phẩm...). 1 là rất thấp, 10 là rất cao.
   4.  **audience_potential**: Điểm số và giải thích về tiềm năng thu hút và phát triển khán giả. 1 là ngách rất hẹp, 10 là có thể tiếp cận đại chúng.
   5.  **competition_level**: Điểm số và giải thích về mức độ cạnh tranh. QUAN TRỌNG: 1 là cạnh tranh RẤT THẤP (cơ hội tốt), 10 là CỰC KỲ cạnh tranh (rất khó để nổi bật).
-  6.  **content_direction**: Gợi ý các hướng nội dung, định dạng video cụ thể.`;
+  6.  **content_direction**: Gợi ý các hướng nội dung, định dạng video cụ thể.
+  7.  **keywords**: Một mảng chứa khoảng 5-7 từ khóa SEO chính liên quan đến ngách.`;
 
   try {
     let responseText: string;
@@ -173,6 +186,7 @@ export const findNiches = async (topic: string, provider: ApiProvider, options: 
       'monetization_potential' in n && 
       'audience_potential' in n && 
       'competition_level' in n &&
+      'keywords' in n &&
       typeof n.monetization_potential.score === 'number'
     )) {
       return niches;
