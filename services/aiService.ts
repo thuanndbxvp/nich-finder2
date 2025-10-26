@@ -154,3 +154,27 @@ export const writeScript = async (niche: Niche, provider: ApiProvider, options: 
     return await callChatGptApiMock(prompt, options);
   }
 };
+
+export const validateApiKey = async (provider: ApiProvider, apiKey: string): Promise<boolean> => {
+  if (!apiKey) return false;
+
+  if (provider === ApiProvider.Gemini) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      // A very lightweight call to check authentication
+      await ai.models.generateContent({
+        model: 'gemini-2.5-flash', // Use a fast, common model for validation
+        contents: 'hi',
+      });
+      return true; // If it doesn't throw, the key is valid
+    } catch (error) {
+      console.error("Gemini API Key validation failed:", error);
+      return false;
+    }
+  } else { // ApiProvider.ChatGPT
+    // Mock validation: Check if it starts with 'sk-' and has a certain length.
+    console.log("Mock validating ChatGPT key...");
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    return apiKey.startsWith('sk-') && apiKey.length > 20;
+  }
+};

@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { ApiProvider, Niche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel } from './types';
-import { findNiches, writeScript } from './services/aiService';
-import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon } from './components/icons';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { ApiProvider, Niche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel, ApiKey, ApiKeyStatus } from './types';
+import { findNiches, writeScript, validateApiKey } from './services/aiService';
+import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon, PlusIcon, TrashIcon, SpinnerIcon, XCircleIcon, QuestionMarkCircleIcon } from './components/icons';
 
 // Custom hook to sync state with localStorage for persistence
-function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
+function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
@@ -15,7 +15,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
     }
   });
 
-  const setValue = (value: T) => {
+  const setValue = (value: T | ((val: T) => T)) => {
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
@@ -28,72 +28,117 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
   return [storedValue, setValue];
 }
 
-
-const ApiConfigModal: React.FC<{
+const ApiKeyManagerModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  geminiApiKey: string;
-  setGeminiApiKey: (key: string) => void;
-  geminiModel: GeminiModel;
-  setGeminiModel: (model: GeminiModel) => void;
-  chatGptApiKey: string;
-  setChatGptApiKey: (key: string) => void;
-  chatGptModel: ChatGptModel;
-  setChatGptModel: (model: ChatGptModel) => void;
-}> = ({ isOpen, onClose, geminiApiKey, setGeminiApiKey, geminiModel, setGeminiModel, chatGptApiKey, setChatGptApiKey, chatGptModel, setChatGptModel }) => {
-  if (!isOpen) return null;
+  apiKeys: ApiKey[];
+  setApiKeys: (keys: ApiKey[] | ((keys: ApiKey[]) => ApiKey[])) => void;
+}> = ({ isOpen, onClose, apiKeys, setApiKeys }) => {
+  const [newKeyData, setNewKeyData] = useState<{ provider: ApiProvider | null, name: string, key: string }>({ provider: null, name: '', key: '' });
 
-  const commonInputStyles = "w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition";
-  const commonSelectStyles = `${commonInputStyles} appearance-none`;
+  const handleValidateKey = useCallback(async (keyId: string) => {
+    const keyToValidate = apiKeys.find(k => k.id === keyId);
+    if (!keyToValidate) return;
+
+    setApiKeys(prev => prev.map(k => k.id === keyId ? { ...k, status: ApiKeyStatus.Validating } : k));
+    
+    const isValid = await validateApiKey(keyToValidate.provider, keyToValidate.key);
+
+    setApiKeys(prev => prev.map(k => k.id === keyId ? { ...k, status: isValid ? ApiKeyStatus.Valid : ApiKeyStatus.Invalid } : k));
+  }, [apiKeys, setApiKeys]);
+
+  const handleAddKey = () => {
+    if (!newKeyData.provider || !newKeyData.key.trim()) {
+      alert("Vui lòng nhập API Key.");
+      return;
+    }
+    const newId = crypto.randomUUID();
+    const keyToAdd: ApiKey = {
+      id: newId,
+      provider: newKeyData.provider,
+      key: newKeyData.key.trim(),
+      name: newKeyData.name.trim() || `Key ${newKeyData.provider} #${apiKeys.filter(k => k.provider === newKeyData.provider).length + 1}`,
+      status: ApiKeyStatus.Unvalidated
+    };
+    setApiKeys(prev => [...prev, keyToAdd]);
+    setNewKeyData({ provider: null, name: '', key: '' });
+    
+    // Auto-validate after adding
+    setTimeout(() => handleValidateKey(newId), 100);
+  };
+  
+  const handleDeleteKey = (keyId: string) => {
+    setApiKeys(prev => prev.filter(k => k.id !== keyId));
+  };
+
+  const StatusIcon = ({ status }: { status: ApiKeyStatus }) => {
+    switch (status) {
+      case ApiKeyStatus.Valid:
+        return <CheckIcon className="w-5 h-5 text-green-400" />;
+      case ApiKeyStatus.Invalid:
+        return <XCircleIcon className="w-5 h-5 text-red-400" />;
+      case ApiKeyStatus.Validating:
+        return <SpinnerIcon className="w-5 h-5 text-blue-400 animate-spin" />;
+      default:
+        return <QuestionMarkCircleIcon className="w-5 h-5 text-gray-500" />;
+    }
+  };
+  
+  const renderKeyList = (provider: ApiProvider) => (
+    <div className="space-y-3">
+        {apiKeys.filter(k => k.provider === provider).map(apiKey => (
+            <div key={apiKey.id} className="bg-gray-700/50 p-3 rounded-lg flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <StatusIcon status={apiKey.status} />
+                    <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{apiKey.name}</p>
+                        <p className="text-gray-400 font-mono">{`${apiKey.key.substring(0, 4)}...${apiKey.key.substring(apiKey.key.length - 4)}`}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => handleValidateKey(apiKey.id)} className="text-gray-400 hover:text-white transition-colors" title="Xác thực lại">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.664 0l3.18-3.185m-3.181 9.995-3.182-3.182m0 0-3.182 3.182M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0Z" /></svg>
+                    </button>
+                    <button onClick={() => handleDeleteKey(apiKey.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Xóa Key">
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+        ))}
+        {newKeyData.provider === provider ? (
+            <div className="bg-gray-700/50 p-3 rounded-lg space-y-3">
+                <input type="text" placeholder="Tên gợi nhớ (ví dụ: Key cá nhân)" value={newKeyData.name} onChange={e => setNewKeyData({...newKeyData, name: e.target.value})} className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1.5 text-sm" />
+                <input type="password" placeholder="Dán API Key vào đây" value={newKeyData.key} onChange={e => setNewKeyData({...newKeyData, key: e.target.value})} className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1.5 text-sm" />
+                <div className="flex gap-2 justify-end">
+                    <button onClick={() => setNewKeyData({provider: null, name: '', key: ''})} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded text-sm transition-colors">Hủy</button>
+                    <button onClick={handleAddKey} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-1 px-3 rounded text-sm transition-colors">Lưu & Xác thực</button>
+                </div>
+            </div>
+        ) : (
+            <button onClick={() => setNewKeyData({provider, name: '', key: ''})} className="w-full flex items-center justify-center gap-2 bg-gray-700/80 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">
+                <PlusIcon className="w-5 h-5" /> Thêm Key mới
+            </button>
+        )}
+    </div>
+  );
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
       <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-lg shadow-2xl animate-fade-in-scale-up" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold">Cấu hình API & Model</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">&times;</button>
+          <h2 className="text-xl font-bold">Quản lý API Key</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-3xl leading-none">&times;</button>
         </div>
-        <div className="p-6 space-y-6">
-          {/* Gemini Config */}
+        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
           <div className="space-y-4 p-4 bg-gray-900/40 rounded-lg border border-gray-700">
             <h3 className="font-semibold text-lg text-indigo-400">Cấu hình Gemini</h3>
-            <div>
-              <label htmlFor="gemini-key-modal" className="block text-sm font-medium text-gray-400 mb-1.5">Gemini API Key</label>
-              <div className="relative">
-                <KeyIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input id="gemini-key-modal" type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} placeholder="Nhập API key của bạn" className={commonInputStyles} />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="gemini-model-modal" className="block text-sm font-medium text-gray-400 mb-1.5">Model</label>
-              <div className="relative">
-                <ServerIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <select id="gemini-model-modal" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value as GeminiModel)} className={commonSelectStyles}>
-                   {GEMINI_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            </div>
+            {renderKeyList(ApiProvider.Gemini)}
           </div>
-          
-          {/* ChatGPT Config */}
           <div className="space-y-4 p-4 bg-gray-900/40 rounded-lg border border-gray-700">
             <h3 className="font-semibold text-lg text-teal-400">ChatGPT (Mock)</h3>
-            <div>
-              <label htmlFor="chatgpt-key-modal" className="block text-sm font-medium text-gray-400 mb-1.5">ChatGPT API Key</label>
-              <div className="relative">
-                <KeyIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input id="chatgpt-key-modal" type="password" value={chatGptApiKey} onChange={(e) => setChatGptApiKey(e.target.value)} placeholder="Nhập API key của bạn" className={commonInputStyles} />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="chatgpt-model-modal" className="block text-sm font-medium text-gray-400 mb-1.5">Model</label>
-              <div className="relative">
-                 <ServerIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <select id="chatgpt-model-modal" value={chatGptModel} onChange={(e) => setChatGptModel(e.target.value as ChatGptModel)} className={commonSelectStyles}>
-                  {CHATGPT_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            </div>
+            {renderKeyList(ApiProvider.ChatGPT)}
           </div>
         </div>
         <div className="p-4 bg-gray-900/30 rounded-b-2xl flex justify-end">
@@ -105,7 +150,6 @@ const ApiConfigModal: React.FC<{
     </div>
   );
 };
-
 
 const App: React.FC = () => {
   const [apiProvider, setApiProvider] = useState<ApiProvider>(ApiProvider.Gemini);
@@ -119,19 +163,25 @@ const App: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
 
-  // API and Model Configuration State
-  const [geminiApiKey, setGeminiApiKey] = useLocalStorage<string>('geminiApiKey', '');
-  const [chatGptApiKey, setChatGptApiKey] = useLocalStorage<string>('chatGptApiKey', '');
+  // API Key Management State
+  const [apiKeys, setApiKeys] = useLocalStorage<ApiKey[]>('apiKeys', []);
   const [geminiModel, setGeminiModel] = useState<GeminiModel>(GEMINI_MODELS[0]);
   const [chatGptModel, setChatGptModel] = useState<ChatGptModel>(CHATGPT_MODELS[0]);
+
+  const hasValidKeyForProvider = useMemo(() => {
+    return apiKeys.some(k => k.provider === apiProvider && k.status === ApiKeyStatus.Valid);
+  }, [apiKeys, apiProvider]);
 
   const isFindNichesDisabled = useMemo(() => {
     if (isLoadingNiches) return true;
     if (!topic.trim()) return true;
-    if (apiProvider === ApiProvider.Gemini && !geminiApiKey) return true;
-    if (apiProvider === ApiProvider.ChatGPT && !chatGptApiKey) return true;
-    return false;
-  }, [isLoadingNiches, apiProvider, geminiApiKey, chatGptApiKey, topic]);
+    return !hasValidKeyForProvider;
+  }, [isLoadingNiches, topic, hasValidKeyForProvider]);
+
+  const getApiKeyForProvider = useCallback((provider: ApiProvider): string | null => {
+      const validKey = apiKeys.find(k => k.provider === provider && k.status === ApiKeyStatus.Valid);
+      return validKey ? validKey.key : null;
+  }, [apiKeys]);
 
 
   const handleFindNiches = useCallback(async () => {
@@ -140,11 +190,11 @@ const App: React.FC = () => {
       return;
     }
 
-    const apiKey = apiProvider === ApiProvider.Gemini ? geminiApiKey : chatGptApiKey;
+    const apiKey = getApiKeyForProvider(apiProvider);
     const model = apiProvider === ApiProvider.Gemini ? geminiModel : chatGptModel;
 
     if (!apiKey) {
-      setError(`Vui lòng nhập API Key cho ${apiProvider === ApiProvider.Gemini ? 'Gemini' : 'ChatGPT'} trong phần cấu hình.`);
+      setError(`Vui lòng thêm và xác thực một API Key cho ${apiProvider === ApiProvider.Gemini ? 'Gemini' : 'ChatGPT'}.`);
       setIsApiModalOpen(true);
       return;
     }
@@ -163,7 +213,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoadingNiches(false);
     }
-  }, [topic, apiProvider, geminiApiKey, chatGptApiKey, geminiModel, chatGptModel]);
+  }, [topic, apiProvider, getApiKeyForProvider, geminiModel, chatGptModel]);
 
   const handleWriteScript = useCallback(async (niche: Niche) => {
     setSelectedNiche(niche);
@@ -171,11 +221,11 @@ const App: React.FC = () => {
     setError(null);
     setScript('');
     
-    const apiKey = apiProvider === ApiProvider.Gemini ? geminiApiKey : chatGptApiKey;
+    const apiKey = getApiKeyForProvider(apiProvider);
     const model = apiProvider === ApiProvider.Gemini ? geminiModel : chatGptModel;
 
     if (!apiKey) {
-      setError(`API Key cho ${apiProvider === ApiProvider.Gemini ? 'Gemini' : 'ChatGPT'} không được tìm thấy. Vui lòng kiểm tra lại.`);
+      setError(`API Key hợp lệ cho ${apiProvider === ApiProvider.Gemini ? 'Gemini' : 'ChatGPT'} không được tìm thấy.`);
       setIsLoadingScript(false);
       setIsApiModalOpen(true);
       return;
@@ -189,7 +239,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoadingScript(false);
     }
-  }, [apiProvider, geminiApiKey, chatGptApiKey, geminiModel, chatGptModel]);
+  }, [apiProvider, getApiKeyForProvider, geminiModel, chatGptModel]);
 
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(script);
@@ -204,17 +254,11 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-white font-sans">
       <div className="container mx-auto px-4 py-8 md:py-12">
         
-        <ApiConfigModal 
+        <ApiKeyManagerModal
           isOpen={isApiModalOpen}
           onClose={() => setIsApiModalOpen(false)}
-          geminiApiKey={geminiApiKey}
-          setGeminiApiKey={setGeminiApiKey}
-          geminiModel={geminiModel}
-          setGeminiModel={setGeminiModel}
-          chatGptApiKey={chatGptApiKey}
-          setChatGptApiKey={setChatGptApiKey}
-          chatGptModel={chatGptModel}
-          setChatGptModel={setChatGptModel}
+          apiKeys={apiKeys}
+          setApiKeys={setApiKeys}
         />
 
         <header className="text-center mb-10">
@@ -267,6 +311,7 @@ const App: React.FC = () => {
                   onClick={handleFindNiches}
                   disabled={isFindNichesDisabled}
                   className="absolute inset-y-0 right-0 flex items-center px-4 m-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:bg-indigo-800/80 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors duration-300"
+                  title={isFindNichesDisabled && !topic.trim() ? "Vui lòng nhập chủ đề" : isFindNichesDisabled ? `Vui lòng thêm và xác thực API Key ${apiProvider}`: ""}
                 >
                   <SparklesIcon className="w-5 h-5 mr-2"/>
                   <span>{isLoadingNiches ? 'Đang tìm...' : 'Tìm ngách'}</span>
