@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ApiProvider, AnalyzedNiche, AiRequestOptions } from '../types';
+import { ApiProvider, AnalyzedNiche, AiRequestOptions, Score } from '../types';
 
 // This is a mock function for ChatGPT as we cannot implement the actual API call.
 const callChatGptApiMock = async (prompt: string, options: AiRequestOptions, schema?: any): Promise<string> => {
@@ -10,30 +10,29 @@ const callChatGptApiMock = async (prompt: string, options: AiRequestOptions, sch
   const topicMatch = prompt.match(/chủ đề người dùng cung cấp là "([^"]+)"/);
   const topic = topicMatch ? topicMatch[1] : "chung";
 
-  if (prompt.includes("hãy phân tích và đề xuất 3 ngách nội dung chuyên sâu")) {
-    const mockNiches: AnalyzedNiche[] = [
-      {
-        title: `Trang điểm Hiệu ứng Đặc biệt (SFX) chủ đề ${topic}`,
-        description: `Hướng dẫn trang điểm các nhân vật kinh dị, quái vật, hoặc các hiệu ứng vết thương giả dành cho mùa ${topic}.`,
-        monetization: "RPM khá. Tiềm năng affiliate lớn cho các sản phẩm mỹ phẩm, dụng cụ hóa trang. Có thể nhận tài trợ từ các nhãn hàng.",
-        content_direction: "Video tutorial (hướng dẫn), time-lapse quá trình trang điểm, review sản phẩm, biến hình thành các nhân vật nổi tiếng.",
-        competition: "Cao. Cần kỹ năng trang điểm tốt và ý tưởng độc đáo. Chất lượng quay phim cận cảnh và ánh sáng là yếu tố quyết định."
-      },
-      {
-        title: `DIY Đồ trang trí ${topic} tại nhà`,
-        description: `Sáng tạo và hướng dẫn làm các món đồ trang trí ${topic} độc đáo, tiết kiệm chi phí từ những vật dụng đơn giản.`,
-        monetization: "RPM trung bình. Có thể làm affiliate cho các trang bán đồ thủ công, dụng cụ. Có thể bán các bộ kit DIY hoặc sản phẩm làm sẵn trên Etsy.",
-        content_direction: "Video hướng dẫn từng bước (how-to), video 'biến rác thành vàng', tổng hợp 5 ý tưởng trang trí nhanh.",
-        competition: "Trung bình. Cần sự sáng tạo và khả năng quay phim đẹp mắt. Tập trung vào các ý tưởng dễ làm theo để thu hút nhiều đối tượng."
-      },
-      {
-        title: `Kể chuyện ma/lịch sử rùng rợn về ${topic}`,
-        description: `Tổng hợp và kể lại những câu chuyện ma, truyền thuyết đô thị, hoặc các sự kiện lịch sử kinh dị liên quan đến ${topic}.`,
-        monetization: "RPM khá. Chủ yếu kiếm tiền từ quảng cáo YouTube. Có thể viết sách hoặc podcast nếu có lượng fan trung thành.",
-        content_direction: "Video dạng kể chuyện, sử dụng giọng đọc lôi cuốn, hình ảnh minh họa, âm thanh rùng rợn để tạo không khí. Không cần lộ mặt (faceless).",
-        competition: "Cao. Cạnh tranh với các kênh kể chuyện kinh dị lớn. Cần có giọng kể đặc trưng và khả năng tìm kiếm, biên tập những câu chuyện độc đáo."
-      },
-    ];
+  const generateRandomScore = (low: number, high: number): number => Math.floor(Math.random() * (high - low + 1)) + low;
+
+  if (prompt.includes("hãy phân tích và đề xuất 10 ngách nội dung chuyên sâu")) {
+    const mockNiches: AnalyzedNiche[] = Array.from({ length: 10 }, (_, i) => {
+      const compScore = generateRandomScore(1, 10);
+      return {
+        title: `Ngách ${topic} sáng tạo #${i + 1}`,
+        description: `Mô tả chi tiết cho ngách ${topic} #${i + 1}, tập trung vào một khía cạnh độc đáo và chưa được khai thác nhiều.`,
+        monetization_potential: {
+          score: generateRandomScore(4, 9),
+          explanation: "RPM khá tốt, tiềm năng affiliate cao với các sản phẩm liên quan. Có thể bán khóa học nhỏ."
+        },
+        audience_potential: {
+          score: generateRandomScore(5, 10),
+          explanation: "Chủ đề này có thể thu hút một lượng lớn khán giả nếu nội dung chất lượng và bắt trend."
+        },
+        competition_level: {
+          score: compScore,
+          explanation: compScore > 7 ? "Cực kỳ cạnh tranh, cần sự khác biệt lớn." : (compScore > 4 ? "Cạnh tranh vừa phải, có cơ hội." : "Ít cạnh tranh, là một đại dương xanh tiềm năng.")
+        },
+        content_direction: "Làm video dạng top list, phân tích chuyên sâu, hoặc hướng dẫn thực hành từng bước (tutorial)."
+      };
+    });
     return JSON.stringify(mockNiches);
   }
   if (prompt.includes("viết một kịch bản video")) {
@@ -113,6 +112,15 @@ const callGeminiApi = async (prompt: string, apiKey: string, model: string, sche
   return response.text;
 };
 
+const scoreSchema = {
+    type: Type.OBJECT,
+    properties: {
+        score: { type: Type.INTEGER, description: "Điểm số từ 1 đến 10." },
+        explanation: { type: Type.STRING, description: "Giải thích ngắn gọn cho điểm số đó." }
+    },
+    required: ["score", "explanation"]
+};
+
 const nicheSchema = {
   type: Type.ARRAY,
   items: {
@@ -126,33 +134,29 @@ const nicheSchema = {
         type: Type.STRING,
         description: "Mô tả ngắn gọn về ngách và giải thích tiềm năng của nó."
       },
-      monetization: {
-        type: Type.STRING,
-        description: "Đánh giá chi tiết về tiềm năng kiếm tiền của ngách, bao gồm RPM, affiliate, v.v."
-      },
+      monetization_potential: { ...scoreSchema, description: "Đánh giá tiềm năng kiếm tiền." },
+      audience_potential: { ...scoreSchema, description: "Đánh giá tiềm năng thu hút khán giả." },
+      competition_level: { ...scoreSchema, description: "Đánh giá mức độ cạnh tranh. Điểm CÀNG CAO nghĩa là CÀNG CẠNH TRANH (khó hơn)." },
       content_direction: {
         type: Type.STRING,
         description: "Gợi ý về các định dạng và hướng nội dung video cụ thể."
-      },
-      competition: {
-        type: Type.STRING,
-        description: "Đánh giá mức độ cạnh tranh và đưa ra gợi ý để tạo sự khác biệt."
       }
     },
-    required: ["title", "description", "monetization", "content_direction", "competition"]
+    required: ["title", "description", "monetization_potential", "audience_potential", "competition_level", "content_direction"]
   }
 };
 
 
 export const findNiches = async (topic: string, provider: ApiProvider, options: AiRequestOptions): Promise<AnalyzedNiche[]> => {
-  const prompt = `Bạn là một chuyên gia chiến lược YouTube với kiến thức sâu rộng về các ngách (niche) thành công, bao gồm cả các ngách có RPM cao và các ý tưởng video viral.
-  Dựa trên kiến thức đó và chủ đề người dùng cung cấp là "${topic}", hãy phân tích và đề xuất 3 ngách nội dung chuyên sâu.
-  Với mỗi ngách, hãy cung cấp thông tin chi tiết theo cấu trúc sau:
+  const prompt = `Bạn là một chuyên gia chiến lược YouTube với kiến thức sâu rộng về các ngách (niche) thành công.
+  Dựa trên chủ đề người dùng cung cấp là "${topic}", hãy phân tích và đề xuất 10 ngách nội dung chuyên sâu.
+  Với mỗi ngách, hãy cung cấp thông tin chi tiết và chấm điểm theo thang điểm 1-10 theo cấu trúc JSON sau:
   1.  **title**: Tên ngách hấp dẫn.
   2.  **description**: Mô tả ngắn gọn về ngách.
-  3.  **monetization**: Đánh giá tiềm năng kiếm tiền (RPM ước tính, khả năng affiliate, bán sản phẩm...).
-  4.  **content_direction**: Gợi ý các hướng nội dung, định dạng video cụ thể (ví dụ: video phân tích, hướng dẫn, top list...).
-  5.  **competition**: Đánh giá mức độ cạnh tranh (Thấp, Trung bình, Cao) và gợi ý cách để nổi bật.`;
+  3.  **monetization_potential**: Điểm số và giải thích về tiềm năng kiếm tiền (RPM, affiliate, bán sản phẩm...). 1 là rất thấp, 10 là rất cao.
+  4.  **audience_potential**: Điểm số và giải thích về tiềm năng thu hút và phát triển khán giả. 1 là ngách rất hẹp, 10 là có thể tiếp cận đại chúng.
+  5.  **competition_level**: Điểm số và giải thích về mức độ cạnh tranh. QUAN TRỌNG: 1 là cạnh tranh RẤT THẤP (cơ hội tốt), 10 là CỰC KỲ cạnh tranh (rất khó để nổi bật).
+  6.  **content_direction**: Gợi ý các hướng nội dung, định dạng video cụ thể.`;
 
   try {
     let responseText: string;
@@ -164,7 +168,13 @@ export const findNiches = async (topic: string, provider: ApiProvider, options: 
     
     // The response is expected to be a JSON string of AnalyzedNiche[]
     const niches = JSON.parse(responseText);
-    if (Array.isArray(niches) && niches.every(n => 'title' in n && 'description' in n && 'monetization' in n && 'content_direction' in n && 'competition' in n)) {
+    if (Array.isArray(niches) && niches.every(n => 
+      'title' in n && 
+      'monetization_potential' in n && 
+      'audience_potential' in n && 
+      'competition_level' in n &&
+      typeof n.monetization_potential.score === 'number'
+    )) {
       return niches;
     }
     throw new Error("Invalid niche data format received from AI.");

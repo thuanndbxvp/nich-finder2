@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { ApiProvider, AnalyzedNiche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel, ApiKey, ApiKeyStatus, SavedSession } from './types';
+import { ApiProvider, AnalyzedNiche, GEMINI_MODELS, CHATGPT_MODELS, GeminiModel, ChatGptModel, ApiKey, ApiKeyStatus, SavedSession, Score } from './types';
 import { findNiches, writeScript, validateApiKey } from './services/aiService';
 import { SparklesIcon, ClipboardIcon, CheckIcon, LightBulbIcon, FilmIcon, KeyIcon, ServerIcon, PlusIcon, TrashIcon, SpinnerIcon, XCircleIcon, QuestionMarkCircleIcon, DollarSignIcon, UsersIcon, ClipboardDocumentListIcon, BookmarkSquareIcon } from './components/icons';
 
@@ -345,6 +345,42 @@ const App: React.FC = () => {
       setSavedSessions(prev => prev.filter(s => s.id !== sessionId));
     }
   };
+
+  const ScoreDisplay: React.FC<{
+    icon: React.ReactNode;
+    title: string;
+    scoreData: Score;
+    isCompetition?: boolean;
+  }> = ({ icon, title, scoreData, isCompetition = false }) => {
+    const { score, explanation } = scoreData;
+    let progressBarColor = 'bg-blue-500'; // Default
+  
+    if (isCompetition) {
+      if (score <= 3) progressBarColor = 'bg-green-500'; // Low competition is good
+      else if (score <= 7) progressBarColor = 'bg-yellow-500'; // Medium
+      else progressBarColor = 'bg-red-500'; // High competition is bad
+    } else {
+       if (score >= 8) progressBarColor = 'bg-green-500'; // High potential is good
+      else if (score >= 4) progressBarColor = 'bg-yellow-500'; // Medium
+      else progressBarColor = 'bg-red-500'; // Low potential is bad
+    }
+
+    return (
+      <div>
+        <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-1.5">
+          {icon}
+          {title}
+        </h4>
+        <div className="flex items-center gap-3">
+          <div className="w-full bg-gray-600/50 rounded-full h-2">
+            <div className={`${progressBarColor} h-2 rounded-full`} style={{ width: `${score * 10}%` }}></div>
+          </div>
+          <span className="font-bold text-base w-10 text-right">{score}/10</span>
+        </div>
+        <p className="text-gray-400 mt-1.5 text-xs">{explanation}</p>
+      </div>
+    );
+  };
   
   const providerGeminiClasses = useMemo(() => apiProvider === ApiProvider.Gemini ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600', [apiProvider]);
   const providerChatGPTClasses = useMemo(() => apiProvider === ApiProvider.ChatGPT ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600', [apiProvider]);
@@ -455,28 +491,30 @@ const App: React.FC = () => {
                       <div className="flex-1">
                           <h3 className="font-bold text-xl text-indigo-300">{niche.title}</h3>
                           <p className="text-gray-400 mt-2 text-sm">{niche.description}</p>
-                           <div className="mt-4 pt-4 border-t border-gray-600/50 space-y-3">
-                              <div >
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
-                                  <DollarSignIcon className="w-5 h-5 text-green-400" />
-                                  Tiềm năng kiếm tiền
-                                </h4>
-                                <p className="text-gray-400 mt-1 text-sm pl-7">{niche.monetization}</p>
-                              </div>
-                              <div >
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
-                                  <ClipboardDocumentListIcon className="w-5 h-5 text-blue-400" />
-                                  Định hướng nội dung
-                                </h4>
-                                <p className="text-gray-400 mt-1 text-sm pl-7">{niche.content_direction}</p>
-                              </div>
-                               <div>
-                                <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
-                                  <UsersIcon className="w-5 h-5 text-orange-400" />
-                                  Mức độ cạnh tranh
-                                </h4>
-                                <p className="text-gray-400 mt-1 text-sm pl-7">{niche.competition}</p>
-                              </div>
+                           <div className="mt-4 pt-4 border-t border-gray-600/50 grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
+                              <ScoreDisplay
+                                icon={<DollarSignIcon className="w-5 h-5 text-green-400" />}
+                                title="Tiềm năng kiếm tiền"
+                                scoreData={niche.monetization_potential}
+                              />
+                               <ScoreDisplay
+                                icon={<UsersIcon className="w-5 h-5 text-blue-400" />}
+                                title="Tiềm năng khán giả"
+                                scoreData={niche.audience_potential}
+                              />
+                               <ScoreDisplay
+                                icon={<UsersIcon className="w-5 h-5 text-orange-400" />}
+                                title="Mức độ cạnh tranh"
+                                scoreData={niche.competition_level}
+                                isCompetition={true}
+                              />
+                           </div>
+                           <div className="mt-4 pt-4 border-t border-gray-600/50">
+                             <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                                <ClipboardDocumentListIcon className="w-5 h-5 text-purple-400" />
+                                Định hướng nội dung
+                              </h4>
+                              <p className="text-gray-400 mt-1 text-sm">{niche.content_direction}</p>
                            </div>
                       </div>
                       <div className="w-full md:w-40 flex-shrink-0">

@@ -3,13 +3,20 @@ export enum ApiProvider {
   ChatGPT = 'chatgpt',
 }
 
+export interface Score {
+  score: number; // Điểm số từ 1 đến 10
+  explanation: string; // Giải thích ngắn gọn cho điểm số
+}
+
 export interface AnalyzedNiche {
   title: string;
   description: string;
-  monetization: string; // Đánh giá tiềm năng kiếm tiền
-  content_direction: string; // Gợi ý hướng nội dung
-  competition: string; // Đánh giá mức độ cạnh tranh
+  monetization_potential: Score;
+  audience_potential: Score;
+  competition_level: Score; // Điểm cao hơn nghĩa là cạnh tranh hơn (khó hơn)
+  content_direction: string;
 }
+
 
 export const GEMINI_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest'] as const;
 export const CHATGPT_MODELS = ['gpt-5', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'] as const; // Mock models
