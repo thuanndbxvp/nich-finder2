@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { ApiProvider, AnalyzedNiche, AiRequestOptions } from '../types';
 
@@ -5,28 +6,32 @@ import { ApiProvider, AnalyzedNiche, AiRequestOptions } from '../types';
 const callChatGptApiMock = async (prompt: string, options: AiRequestOptions, schema?: any): Promise<string> => {
   console.log(`Mocking ChatGPT API call with model ${options.model} and prompt:`, prompt);
   await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+  
+  const topicMatch = prompt.match(/chủ đề người dùng cung cấp là "([^"]+)"/);
+  const topic = topicMatch ? topicMatch[1] : "chung";
+
   if (prompt.includes("hãy phân tích và đề xuất 3 ngách nội dung chuyên sâu")) {
     const mockNiches: AnalyzedNiche[] = [
       {
-        title: "Tài chính Cá nhân Cho Gen Z",
-        description: "Hướng dẫn thế hệ trẻ về tiết kiệm, đầu tư và quản lý tiền bạc một cách dễ hiểu và gần gũi.",
-        monetization: "RPM cao do chủ đề tài chính. Rất tốt cho affiliate marketing các app đầu tư, ngân hàng số. Có thể bán khóa học/ebook đơn giản.",
-        content_direction: "Video dạng giải thích (explainer), hướng dẫn từng bước (how-to), review ứng dụng, phỏng vấn người trẻ thành công.",
-        competition: "Trung bình. Để nổi bật, hãy tập trung vào phong cách edit trẻ trung, sử dụng meme, và các ví dụ thực tế mà Gen Z quan tâm (vd: tiết kiệm tiền đi concert)."
+        title: `Trang điểm Hiệu ứng Đặc biệt (SFX) chủ đề ${topic}`,
+        description: `Hướng dẫn trang điểm các nhân vật kinh dị, quái vật, hoặc các hiệu ứng vết thương giả dành cho mùa ${topic}.`,
+        monetization: "RPM khá. Tiềm năng affiliate lớn cho các sản phẩm mỹ phẩm, dụng cụ hóa trang. Có thể nhận tài trợ từ các nhãn hàng.",
+        content_direction: "Video tutorial (hướng dẫn), time-lapse quá trình trang điểm, review sản phẩm, biến hình thành các nhân vật nổi tiếng.",
+        competition: "Cao. Cần kỹ năng trang điểm tốt và ý tưởng độc đáo. Chất lượng quay phim cận cảnh và ánh sáng là yếu tố quyết định."
       },
       {
-        title: "Lịch sử 'Đen' (Dark History)",
-        description: "Khám phá những góc khuất, sự thật gây sốc hoặc những câu chuyện bi kịch ít người biết trong lịch sử Việt Nam và thế giới.",
-        monetization: "RPM ở mức khá. Chủ yếu kiếm tiền từ quảng cáo YouTube. Khó affiliate nhưng có thể bán sách hoặc merchandise nếu xây dựng cộng đồng mạnh.",
-        content_direction: "Video kể chuyện (storytelling) với hình ảnh tư liệu, animation minh họa. Cần đầu tư vào giọng đọc và kịch bản lôi cuốn.",
-        competition: "Trung bình. Cần tìm những câu chuyện thật độc đáo hoặc có góc nhìn riêng, tránh các chủ đề đã quá quen thuộc. Chất lượng âm thanh và hình ảnh là chìa khóa."
+        title: `DIY Đồ trang trí ${topic} tại nhà`,
+        description: `Sáng tạo và hướng dẫn làm các món đồ trang trí ${topic} độc đáo, tiết kiệm chi phí từ những vật dụng đơn giản.`,
+        monetization: "RPM trung bình. Có thể làm affiliate cho các trang bán đồ thủ công, dụng cụ. Có thể bán các bộ kit DIY hoặc sản phẩm làm sẵn trên Etsy.",
+        content_direction: "Video hướng dẫn từng bước (how-to), video 'biến rác thành vàng', tổng hợp 5 ý tưởng trang trí nhanh.",
+        competition: "Trung bình. Cần sự sáng tạo và khả năng quay phim đẹp mắt. Tập trung vào các ý tưởng dễ làm theo để thu hút nhiều đối tượng."
       },
       {
-        title: "Thử Thách Sống Tối Giản",
-        description: "Thực hiện các thử thách sống tối giản trong 30 ngày và ghi lại hành trình: dọn nhà, giảm chi tiêu, detox kỹ thuật số...",
-        monetization: "RPM trung bình. Tiềm năng affiliate lớn cho các sản phẩm bền vững, đồ gia dụng thông minh, sách về lối sống. Có thể tạo ra các sản phẩm số như 'Bộ kế hoạch sống tối giản'.",
-        content_direction: "Định dạng Vlog, 'before-after', chia sẻ kinh nghiệm thực tế. Video cần chân thực, truyền cảm hứng và đưa ra các mẹo hữu ích.",
-        competition: "Cao. Để khác biệt, hãy chọn một góc tiếp cận riêng (ví dụ: tối giản cho sinh viên, cho người đi làm bận rộn) và thể hiện cá tính mạnh mẽ."
+        title: `Kể chuyện ma/lịch sử rùng rợn về ${topic}`,
+        description: `Tổng hợp và kể lại những câu chuyện ma, truyền thuyết đô thị, hoặc các sự kiện lịch sử kinh dị liên quan đến ${topic}.`,
+        monetization: "RPM khá. Chủ yếu kiếm tiền từ quảng cáo YouTube. Có thể viết sách hoặc podcast nếu có lượng fan trung thành.",
+        content_direction: "Video dạng kể chuyện, sử dụng giọng đọc lôi cuốn, hình ảnh minh họa, âm thanh rùng rợn để tạo không khí. Không cần lộ mặt (faceless).",
+        competition: "Cao. Cạnh tranh với các kênh kể chuyện kinh dị lớn. Cần có giọng kể đặc trưng và khả năng tìm kiếm, biên tập những câu chuyện độc đáo."
       },
     ];
     return JSON.stringify(mockNiches);
