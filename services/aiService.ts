@@ -7,41 +7,62 @@ const callChatGptApiMock = async (prompt: string, options: AiRequestOptions, sch
   console.log(`Mocking ChatGPT API call with model ${options.model} and prompt:`, prompt);
   await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
   
-  const topicMatch = prompt.match(/chủ đề người dùng cung cấp là "([^"]+)"/);
+  const topicMatch = prompt.match(/chủ đề chính mà người dùng cung cấp là "([^"]+)"/);
   const topic = topicMatch ? topicMatch[1] : "chung";
 
   const generateRandomScore = (low: number, high: number): number => Math.floor(Math.random() * (high - low + 1)) + low;
 
-  if (prompt.includes("hãy phân tích và đề xuất 10 ngách nội dung chuyên sâu")) {
+  if (prompt.includes("brainstorm") && prompt.includes("ĐỘT PHÁ")) {
     const mockNiches: AnalyzedNiche[] = Array.from({ length: 10 }, (_, i) => {
-      const compScore = generateRandomScore(1, 10);
+      const compScore = generateRandomScore(2, 9);
+      const nicheIdeas = [
+          `Thử thách ${topic} trong 24 giờ`,
+          `${topic} và Những câu chuyện chưa kể`,
+          `Review Dụng Cụ ${topic} Siêu Rẻ vs Siêu Đắt`,
+          `Xây dựng kênh ${topic} từ con số 0`,
+          `${topic} dưới góc nhìn khoa học`,
+          `So sánh ${topic} Việt Nam và Quốc Tế`,
+          `Một ngày làm [nghề nghiệp liên quan đến ${topic}]`,
+          `Phản ứng của người nước ngoài về ${topic} Việt Nam`,
+          `Du lịch ${topic} siêu tiết kiệm`,
+          `${topic} dành cho người hướng nội`
+      ];
+      const keywordsExamples = [
+          [`thử thách ${topic} 24h`, `du lịch ${topic} 1 ngày`, `khám phá ${topic} trong 24 giờ`, `chi phí đi ${topic} 1 ngày`],
+          [`lịch sử ${topic}`, `bí ẩn về ${topic}`, `sự thật thú vị về ${topic}`, `khám phá văn hóa ${topic}`],
+          [`dụng cụ ${topic} giá rẻ`, `review đồ ${topic}`, `so sánh đồ ${topic} đắt và rẻ`, `có nên mua đồ ${topic} giá rẻ`],
+          [`cách làm youtube về ${topic}`, `xây kênh youtube ${topic}`, `kiếm tiền từ youtube ${topic}`, `hướng dẫn làm video ${topic}`],
+          [`khoa học giải thích ${topic}`, `tại sao ${topic} lại như vậy`, `nguyên lý hoạt động của ${topic}`, `sự thật khoa học về ${topic}`]
+      ];
+
       return {
-        title: `Ngách ${topic} sáng tạo #${i + 1}`,
-        description: `Mô tả chi tiết cho ngách ${topic} #${i + 1}, tập trung vào một khía cạnh độc đáo và chưa được khai thác nhiều.`,
+        title: nicheIdeas[i] || `Ý tưởng ${topic} độc đáo #${i + 1}`,
+        description: `Kênh này tập trung khai thác khía cạnh độc đáo của chủ đề "${topic}", nhắm đến đối tượng khán giả tò mò và muốn khám phá những điều mới mẻ. Điểm khác biệt là góc nhìn chuyên sâu và cách thể hiện sáng tạo.`,
         monetization_potential: {
-          score: generateRandomScore(4, 9),
-          explanation: "RPM khá tốt, tiềm năng affiliate cao với các sản phẩm liên quan. Có thể bán khóa học nhỏ."
+          score: generateRandomScore(5, 9),
+          explanation: "Tiềm năng từ quảng cáo YouTube (RPM khá), affiliate marketing cho các sản phẩm liên quan và có thể bán khóa học/ebook."
         },
         audience_potential: {
-          score: generateRandomScore(5, 10),
-          explanation: "Chủ đề này có thể thu hút một lượng lớn khán giả nếu nội dung chất lượng và bắt trend."
+          score: generateRandomScore(6, 10),
+          explanation: "Chủ đề có tệp khán giả rộng, dễ dàng thu hút người xem nếu nội dung có chất lượng cao và độc đáo."
         },
         competition_level: {
           score: compScore,
-          explanation: compScore > 7 ? "Cực kỳ cạnh tranh, cần sự khác biệt lớn." : (compScore > 4 ? "Cạnh tranh vừa phải, có cơ hội." : "Ít cạnh tranh, là một đại dương xanh tiềm năng.")
+          explanation: compScore > 7 ? "Thị trường bão hòa, cần nội dung cực kỳ đột phá." : (compScore > 4 ? "Cạnh tranh vừa phải, vẫn còn nhiều cơ hội." : "Ngách còn mới, ít cạnh tranh, tiềm năng lớn.")
         },
-        content_direction: "Làm video dạng top list, phân tích chuyên sâu, hoặc hướng dẫn thực hành từng bước (tutorial).",
-        keywords: [
-            `${topic} cho người mới bắt đầu`,
-            `hướng dẫn ${topic}`,
-            `mẹo ${topic} 2024`,
-            `review ${topic}`,
-            `${topic} là gì`
+        content_direction: `Video 1: Thử thách [Hành động] trong 24h với chủ đề ${topic} | Video 2: 5 sự thật gây sốc về ${topic} mà bạn chưa bao giờ nghe.`,
+        keywords: keywordsExamples[i % 5] || [
+            `${topic} cho người mới`,
+            `hướng dẫn ${topic} chi tiết`,
+            `mẹo ${topic} hay`,
+            `review ${topic} 2024`,
+            `top 10 ${topic}`
         ]
       };
     });
     return JSON.stringify(mockNiches);
   }
+
   if (prompt.includes("viết một kịch bản video")) {
     return `
 ### **Kịch bản Video YouTube (Mẫu từ ChatGPT - Model: ${options.model})**
@@ -160,16 +181,25 @@ const nicheSchema = {
 
 
 export const findNiches = async (topic: string, provider: ApiProvider, options: AiRequestOptions): Promise<AnalyzedNiche[]> => {
-  const prompt = `Bạn là một chuyên gia chiến lược YouTube với kiến thức sâu rộng về các ngách (niche) thành công.
-  Dựa trên chủ đề người dùng cung cấp là "${topic}", hãy phân tích và đề xuất 10 ngách nội dung chuyên sâu.
-  Với mỗi ngách, hãy cung cấp thông tin chi tiết và chấm điểm theo thang điểm 1-10 theo cấu trúc JSON sau:
-  1.  **title**: Tên ngách hấp dẫn.
-  2.  **description**: Mô tả ngắn gọn về ngách.
-  3.  **monetization_potential**: Điểm số và giải thích về tiềm năng kiếm tiền (RPM, affiliate, bán sản phẩm...). 1 là rất thấp, 10 là rất cao.
-  4.  **audience_potential**: Điểm số và giải thích về tiềm năng thu hút và phát triển khán giả. 1 là ngách rất hẹp, 10 là có thể tiếp cận đại chúng.
-  5.  **competition_level**: Điểm số và giải thích về mức độ cạnh tranh. QUAN TRỌNG: 1 là cạnh tranh RẤT THẤP (cơ hội tốt), 10 là CỰC KỲ cạnh tranh (rất khó để nổi bật).
-  6.  **content_direction**: Gợi ý các hướng nội dung, định dạng video cụ thể.
-  7.  **keywords**: Một mảng chứa khoảng 5-7 từ khóa SEO chính liên quan đến ngách.`;
+  const prompt = `Bạn là một chuyên gia chiến lược YouTube và một nhà sáng tạo nội dung bậc thầy với 10 năm kinh nghiệm. Nhiệm vụ của bạn là "brainstorm" và đề xuất những ý tưởng ngách ĐỘT PHÁ và THỰC TẾ cho chủ đề chính mà người dùng cung cấp là "${topic}".
+
+Hãy suy nghĩ vượt ra ngoài những ý tưởng thông thường. Tìm kiếm những góc nhìn độc đáo, chưa được khai thác nhiều. Đề xuất 10 ngách nội dung cụ thể và có tiềm năng thành công cao.
+
+Với MỖI ngách, hãy cung cấp thông tin chi tiết và chấm điểm theo cấu trúc JSON được yêu cầu:
+
+1.  **title**: Một cái tên/tiêu đề CỤ THỂ và SÁNG TẠO cho kênh YouTube, không phải là một mô tả chung chung. Ví dụ, với chủ đề "Nấu ăn", thay vì "Ngách nấu ăn #1", hãy đề xuất "Bếp Nhỏ Của Gen Z" hoặc "Thử Thách Nấu Ăn Cùng Người Lạ". TUYỆT ĐỐI không sử dụng các mẫu như "Ngách [chủ đề] Sáng Tạo #Y".
+
+2.  **description**: Mô tả chi tiết về ngách này. Nó tập trung vào điều gì? Đối tượng khán giả mục tiêu là ai (nhân khẩu học, sở thích)? Điểm độc đáo (unique selling point) giúp kênh nổi bật là gì?
+
+3.  **monetization_potential**: Chấm điểm tiềm năng kiếm tiền từ 1-10 và giải thích lý do (RPM ước tính, cơ hội affiliate, tiềm năng bán sản phẩm/khóa học, thu hút tài trợ từ nhãn hàng nào...).
+
+4.  **audience_potential**: Chấm điểm tiềm năng khán giả từ 1-10 và giải thích (độ lớn của thị trường, mức độ quan tâm của khán giả, khả năng tạo cộng đồng...).
+
+5.  **competition_level**: Chấm điểm mức độ cạnh tranh từ 1-10. QUAN TRỌNG: 1 = Rất thấp (đại dương xanh, cơ hội vàng), 10 = Cực kỳ bão hòa (đại dương đỏ, cực khó). Giải thích ngắn gọn về các đối thủ chính nếu có.
+
+6.  **content_direction**: Đề xuất 2-3 ý tưởng video CỤ THỂ và HẤP DẪN mà kênh có thể bắt đầu sản xuất ngay. Bao gồm cả TIÊU ĐỀ VIDEO gợi ý. Ví dụ: "Video 1: Thử thách sống sót 24h ở Sài Gòn chỉ với 100k - Tiêu đề: SINH TỒN 24H VỚI 100K TẠI SÀI GÒN - BẤT KHẢ THI?".
+
+7.  **keywords**: Cung cấp một mảng chứa 5-7 từ khóa SEO dài (long-tail keywords) có liên quan trực tiếp, là những cụm từ mà khán giả mục tiêu SẼ THỰC SỰ tìm kiếm. Ví dụ: "kinh nghiệm du lịch sài gòn một mình", "quán ăn quận 1 giá sinh viên".`;
 
   try {
     let responseText: string;
