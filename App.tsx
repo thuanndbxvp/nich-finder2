@@ -29,6 +29,84 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => voi
 }
 
 
+const ApiConfigModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
+  geminiModel: GeminiModel;
+  setGeminiModel: (model: GeminiModel) => void;
+  chatGptApiKey: string;
+  setChatGptApiKey: (key: string) => void;
+  chatGptModel: ChatGptModel;
+  setChatGptModel: (model: ChatGptModel) => void;
+}> = ({ isOpen, onClose, geminiApiKey, setGeminiApiKey, geminiModel, setGeminiModel, chatGptApiKey, setChatGptApiKey, chatGptModel, setChatGptModel }) => {
+  if (!isOpen) return null;
+
+  const commonInputStyles = "w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition";
+  const commonSelectStyles = `${commonInputStyles} appearance-none`;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+      <div className="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-lg shadow-2xl animate-fade-in-scale-up" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+          <h2 className="text-xl font-bold">Cấu hình API & Model</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">&times;</button>
+        </div>
+        <div className="p-6 space-y-6">
+          {/* Gemini Config */}
+          <div className="space-y-4 p-4 bg-gray-900/40 rounded-lg border border-gray-700">
+            <h3 className="font-semibold text-lg text-indigo-400">Cấu hình Gemini</h3>
+            <div>
+              <label htmlFor="gemini-key-modal" className="block text-sm font-medium text-gray-400 mb-1.5">Gemini API Key</label>
+              <div className="relative">
+                <KeyIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input id="gemini-key-modal" type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} placeholder="Nhập API key của bạn" className={commonInputStyles} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="gemini-model-modal" className="block text-sm font-medium text-gray-400 mb-1.5">Model</label>
+              <div className="relative">
+                <ServerIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <select id="gemini-model-modal" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value as GeminiModel)} className={commonSelectStyles}>
+                   {GEMINI_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          {/* ChatGPT Config */}
+          <div className="space-y-4 p-4 bg-gray-900/40 rounded-lg border border-gray-700">
+            <h3 className="font-semibold text-lg text-teal-400">ChatGPT (Mock)</h3>
+            <div>
+              <label htmlFor="chatgpt-key-modal" className="block text-sm font-medium text-gray-400 mb-1.5">ChatGPT API Key</label>
+              <div className="relative">
+                <KeyIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input id="chatgpt-key-modal" type="password" value={chatGptApiKey} onChange={(e) => setChatGptApiKey(e.target.value)} placeholder="Nhập API key của bạn" className={commonInputStyles} />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="chatgpt-model-modal" className="block text-sm font-medium text-gray-400 mb-1.5">Model</label>
+              <div className="relative">
+                 <ServerIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <select id="chatgpt-model-modal" value={chatGptModel} onChange={(e) => setChatGptModel(e.target.value as ChatGptModel)} className={commonSelectStyles}>
+                  {CHATGPT_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 bg-gray-900/30 rounded-b-2xl flex justify-end">
+          <button onClick={onClose} className="bg-indigo-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-indigo-500 transition-colors">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const App: React.FC = () => {
   const [apiProvider, setApiProvider] = useState<ApiProvider>(ApiProvider.Gemini);
   const [topic, setTopic] = useState<string>('');
@@ -39,6 +117,7 @@ const App: React.FC = () => {
   const [isLoadingScript, setIsLoadingScript] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
 
   // API and Model Configuration State
   const [geminiApiKey, setGeminiApiKey] = useLocalStorage<string>('geminiApiKey', '');
@@ -48,10 +127,11 @@ const App: React.FC = () => {
 
   const isFindNichesDisabled = useMemo(() => {
     if (isLoadingNiches) return true;
+    if (!topic.trim()) return true;
     if (apiProvider === ApiProvider.Gemini && !geminiApiKey) return true;
     if (apiProvider === ApiProvider.ChatGPT && !chatGptApiKey) return true;
     return false;
-  }, [isLoadingNiches, apiProvider, geminiApiKey, chatGptApiKey]);
+  }, [isLoadingNiches, apiProvider, geminiApiKey, chatGptApiKey, topic]);
 
 
   const handleFindNiches = useCallback(async () => {
@@ -65,6 +145,7 @@ const App: React.FC = () => {
 
     if (!apiKey) {
       setError(`Vui lòng nhập API Key cho ${apiProvider === ApiProvider.Gemini ? 'Gemini' : 'ChatGPT'} trong phần cấu hình.`);
+      setIsApiModalOpen(true);
       return;
     }
 
@@ -96,6 +177,7 @@ const App: React.FC = () => {
     if (!apiKey) {
       setError(`API Key cho ${apiProvider === ApiProvider.Gemini ? 'Gemini' : 'ChatGPT'} không được tìm thấy. Vui lòng kiểm tra lại.`);
       setIsLoadingScript(false);
+      setIsApiModalOpen(true);
       return;
     }
 
@@ -118,13 +200,23 @@ const App: React.FC = () => {
   const providerGeminiClasses = useMemo(() => apiProvider === ApiProvider.Gemini ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600', [apiProvider]);
   const providerChatGPTClasses = useMemo(() => apiProvider === ApiProvider.ChatGPT ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600', [apiProvider]);
   
-  const commonInputStyles = "w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition";
-  const commonSelectStyles = `${commonInputStyles} appearance-none`;
-  
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
       <div className="container mx-auto px-4 py-8 md:py-12">
         
+        <ApiConfigModal 
+          isOpen={isApiModalOpen}
+          onClose={() => setIsApiModalOpen(false)}
+          geminiApiKey={geminiApiKey}
+          setGeminiApiKey={setGeminiApiKey}
+          geminiModel={geminiModel}
+          setGeminiModel={setGeminiModel}
+          chatGptApiKey={chatGptApiKey}
+          setChatGptApiKey={setChatGptApiKey}
+          chatGptModel={chatGptModel}
+          setChatGptModel={setChatGptModel}
+        />
+
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
             YouTube Niche & Script AI
@@ -139,66 +231,27 @@ const App: React.FC = () => {
           {/* Step 1: Configuration & Topic Input */}
           <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-700 shadow-lg space-y-6">
             
-            {/* Part 1: Provider Selection */}
-            <div>
-              <label className="block text-lg font-bold text-gray-300 mb-3">1. Chọn nhà cung cấp AI</label>
-              <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-full w-fit">
-                <button onClick={() => setApiProvider(ApiProvider.Gemini)} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${providerGeminiClasses}`}>
-                  Gemini
-                </button>
-                <button onClick={() => setApiProvider(ApiProvider.ChatGPT)} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${providerChatGPTClasses}`}>
-                  ChatGPT
-                </button>
+            {/* Part 1: Provider Selection & API Config */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+               <div>
+                  <label className="block text-lg font-bold text-gray-300 mb-2">1. Chọn nhà cung cấp AI</label>
+                  <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-full w-fit">
+                    <button onClick={() => setApiProvider(ApiProvider.Gemini)} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${providerGeminiClasses}`}>
+                      Gemini
+                    </button>
+                    <button onClick={() => setApiProvider(ApiProvider.ChatGPT)} className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300 ${providerChatGPTClasses}`}>
+                      ChatGPT
+                    </button>
+                  </div>
               </div>
+               <button onClick={() => setIsApiModalOpen(true)} className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors w-full sm:w-auto">
+                 <KeyIcon className="w-5 h-5" />
+                 <span>Quản lý API Key</span>
+               </button>
             </div>
 
-            {/* Part 2: Conditional API & Model Config */}
-            <div className="transition-opacity duration-500 min-h-[164px]">
-              {apiProvider === ApiProvider.Gemini && (
-                <div className="space-y-4 p-4 bg-gray-900/40 rounded-lg border border-gray-700 animate-fade-in">
-                  <h3 className="font-semibold text-lg text-indigo-400">Cấu hình Gemini</h3>
-                  <div>
-                    <label htmlFor="gemini-key" className="block text-sm font-medium text-gray-400 mb-1.5">Gemini API Key</label>
-                    <div className="relative">
-                      <KeyIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <input id="gemini-key" type="password" value={geminiApiKey} onChange={(e) => setGeminiApiKey(e.target.value)} placeholder="Nhập API key của bạn" className={commonInputStyles} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="gemini-model" className="block text-sm font-medium text-gray-400 mb-1.5">Model</label>
-                    <div className="relative">
-                      <ServerIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <select id="gemini-model" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value as GeminiModel)} className={commonSelectStyles}>
-                         {GEMINI_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {apiProvider === ApiProvider.ChatGPT && (
-                <div className="space-y-4 p-4 bg-gray-900/40 rounded-lg border border-gray-700 animate-fade-in">
-                  <h3 className="font-semibold text-lg text-teal-400">ChatGPT (Mock)</h3>
-                  <div>
-                    <label htmlFor="chatgpt-key" className="block text-sm font-medium text-gray-400 mb-1.5">ChatGPT API Key</label>
-                    <div className="relative">
-                      <KeyIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <input id="chatgpt-key" type="password" value={chatGptApiKey} onChange={(e) => setChatGptApiKey(e.target.value)} placeholder="Nhập API key của bạn" className={commonInputStyles} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="chatgpt-model" className="block text-sm font-medium text-gray-400 mb-1.5">Model</label>
-                    <div className="relative">
-                       <ServerIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <select id="chatgpt-model" value={chatGptModel} onChange={(e) => setChatGptModel(e.target.value as ChatGptModel)} className={commonSelectStyles}>
-                        {CHATGPT_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Part 3: Topic Input */}
+            {/* Part 2: Topic Input */}
             <div className="border-t border-gray-700 pt-6">
               <label htmlFor="topic" className="block text-lg font-bold text-gray-300 mb-3">2. Nhập chủ đề chính</label>
               <div className="relative">
@@ -213,7 +266,7 @@ const App: React.FC = () => {
                 <button 
                   onClick={handleFindNiches}
                   disabled={isFindNichesDisabled}
-                  className="absolute inset-y-0 right-0 flex items-center px-4 m-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed transition-colors duration-300"
+                  className="absolute inset-y-0 right-0 flex items-center px-4 m-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:bg-indigo-800/80 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors duration-300"
                 >
                   <SparklesIcon className="w-5 h-5 mr-2"/>
                   <span>{isLoadingNiches ? 'Đang tìm...' : 'Tìm ngách'}</span>
